@@ -9,6 +9,7 @@ pg = pygame
 
 # Set up the drawing window
 class GUI:
+    debug = True
 
     def __init__(self):
         self.clock = pygame.time.Clock()
@@ -18,9 +19,20 @@ class GUI:
         self.map_y = int(GAME_HIGHT * 0.10)
 
         self.world_coord = (self.map_x, self.map_y)
-        self.world = pygame.Surface((MAP_WIDTH,MAP_HIGHT))
+        self.world = pygame.Surface((MAP_WIDTH, MAP_HIGHT))
 
-        self.dt = 0.1
+        self.dt = 1
+
+        self.grid = pygame.Surface((MAP_WIDTH, MAP_HIGHT),pygame.SRCALPHA)
+        for i in range(0, MAP_HIGHT, MAX_PERCEPTION):
+            a = (0, i)
+            b = (MAP_WIDTH, i)
+            pg.draw.line(self.grid, pg.Color('green'), a, b, 1)
+
+        for j in range(0, MAP_WIDTH, MAX_PERCEPTION):
+            a = (j, 0)
+            b = (j, MAP_HIGHT)
+            pg.draw.line(self.grid, pg.Color('green'), a, b, 1)
 
     def run(self):
         while True:
@@ -42,10 +54,20 @@ class GUI:
 
         self.draw_frame()
 
+        if GUI.debug:
+            self.debugf()
+
         self.screen.blit(self.world, self.world_coord)
         pygame.display.flip()
 
-        self.dt = 10  #self.clock.tick(60)
+        self. tick()
+        from time import sleep
+        #  print(Movement.hashmap)
+        # sleep(10)
+
+    def tick(self):
+        for creature in pop:
+            creature.update(self.dt, pop)
 
     def draw_frame(self):
         for creature in pop:
@@ -53,7 +75,10 @@ class GUI:
 
             self.world.blit(img.image, img.rect)
 
-            creature.update(self.dt, pop)
+
+
+    def debugf(self):
+        self.world.blit( self.grid , self.grid.get_rect())
 
 
 game_gui = GUI()

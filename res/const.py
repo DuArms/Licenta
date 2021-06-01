@@ -7,7 +7,8 @@ from res.gui_const import *
 
 np.random.seed(0)
 
-
+CARNIVORE = 1
+HERBIVORE = 2
 
 
 MAP_SIZE = 600
@@ -18,9 +19,12 @@ R = 30
 # Matematice
 PI = np.math.pi
 
-# Infectie
-INFECTION_CHANCE = 0.1
+
+
 MAX_SPEED = 10
+
+MAX_PERCEPTION = 60
+
 MIN_SPEED = 5
 
 MAX_FOOD = 1

@@ -1,6 +1,7 @@
 import pygame as pg
 from random import uniform
 from creature.features.movement import Movement
+from res.const import *
 
 Movement.set_boundary(Movement.edge_distance_pct)
 
@@ -28,7 +29,10 @@ class Creature:
             Movement.min_speed,
             Movement.max_speed,
             Movement.max_force,
-            Movement.can_wrap)
+            Movement.can_wrap,
+            self)
+
+        self.type = None
 
     def update(self, dt, boids) -> None:
         steering = pg.Vector2()
@@ -36,25 +40,23 @@ class Creature:
         if not Movement.can_wrap:
             steering += self.movement.avoid_edge()
 
-        neighbors = self.movement.get_neighbors(boids)
+        neighbors = self.movement.get_neighbors()
 
         if neighbors:
+
             separation = self.movement.separation(neighbors)
             alignment = self.movement.alignment(neighbors)
             cohesion = self.movement.cohesion(neighbors)
-
+            avoid = 1.2 * self.movement.avoid(neighbors)
             # DEBUG
             # separation *= 0
             # alignment *= 0
             # cohesion *= 0
 
-            steering += separation + alignment + cohesion
+            steering += separation + alignment + cohesion + avoid
 
         # steering = self.clamp_force(steering)
         self.movement.update(dt, steering)
 
-        if ( self.to_draw != None):
+        if (self.to_draw != None):
             self.to_draw.update()
-
-        if self.movement.position[0] < 0 :
-            print(self.movement.position)

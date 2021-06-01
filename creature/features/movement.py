@@ -2,6 +2,8 @@ import pygame as pg
 
 from res.const import *
 
+from Algoritmi.SpatialHash import *
+
 
 class Movement(pg.sprite.Sprite):
     # default image is a li'l white triangle
@@ -9,20 +11,22 @@ class Movement(pg.sprite.Sprite):
     pg.draw.polygon(image, pg.Color('white'),
                     [(15, 5), (0, 2), (0, 8)])
 
-    can_wrap = False
+    can_wrap = True
     debug = False
     max_x = 0
     max_y = 0
 
-    min_speed = .01
-    max_speed = .2
-    max_force = 1
-    max_turn = 5
-    perception = 60
+    min_speed = 0
+    max_speed = 2
+    max_force = 3
+    max_turn = 30
+    perception = MAX_PERCEPTION
     crowding = 15
 
     edge_distance_pct = 5
     edges = [0, 0, 0, 0]
+
+    hashmap: SpatialHash = None
 
     @staticmethod
     def set_boundary(edge_distance_pct):
@@ -38,11 +42,12 @@ class Movement(pg.sprite.Sprite):
                           Movement.max_y - margin_h]
 
     def __init__(self, position, velocity, min_speed, max_speed,
-                 max_force, can_wrap):
+                 max_force, can_wrap, parent):
 
         super().__init__()
 
         # set limits
+        self.parent = parent
         self.min_speed = min_speed
         self.max_speed = max_speed
         self.max_force = max_force
@@ -51,11 +56,14 @@ class Movement(pg.sprite.Sprite):
         self.acceleration = pg.Vector2(0, 0)
         self.velocity = pg.Vector2(velocity)
 
+        Movement.hashmap.insert(self)
         self.steering = pg.Vector2([0, 0])
 
         self.heading = 0.0
 
     def update(self, dt, steering):
+        old_grid_key = self.hashmap.key(self)
+
         self.steering = steering
 
         self.acceleration = steering * dt
@@ -90,6 +98,10 @@ class Movement(pg.sprite.Sprite):
             self.wrap()
         else:
             self.contain()
+
+        if Movement.hashmap.key(self) != old_grid_key:
+            Movement.hashmap.remove(self, old_grid_key)
+            Movement.hashmap.insert(self)
 
     def avoid_edge(self):
         left = self.edges[0] - self.position.x
@@ -169,11 +181,47 @@ class Movement(pg.sprite.Sprite):
         steering = self.clamp_force(steering)
         return steering / 100
 
-    def get_neighbors(self, boids: 'Creature') -> List['Creature']:
+    def avoid(self, creatures: 'Creature') -> pg.Vector2:
+        steering = pg.Vector2()
+
+        for creature in creatures:
+            if creature.type == CARNIVORE:
+                movement_info: Movement = creature.movement
+
+                steering -= movement_info.position - self.position
+
+        steering = self.clamp_force(steering)
+
+        return steering
+
+    def get_neighbors(self) -> List['Creature']:
+
         neighbors = []
-        for boid in boids:
-            if boid != self:
-                dist = self.position.distance_to(boid.movement.position)
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+
+                res = Movement.hashmap.query_by_key(
+                    Movement.hashmap.key_from_coord(self.position - (self.perception * i, self.perception * j))
+                )
+
+                neighbors.append(res)
+
+        # neighbors = Movement.hashmap.query(self)
+        # creatures = [ x.parent for x in neighbors]
+        creatures = []
+        for s in neighbors:
+           l =  [x.parent for x in s]
+           creatures.extend(l)
+
+        neighbors = []
+
+        for creature in creatures:
+            if creature != self:
+                dist = self.position.distance_to(creature.movement.position)
                 if dist < self.perception:
-                    neighbors.append(boid)
+                    neighbors.append(creature)
+
         return neighbors
+
+
+Movement.hashmap = hashmap = SpatialHash(MAX_PERCEPTION * 2)
