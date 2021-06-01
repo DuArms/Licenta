@@ -1,7 +1,9 @@
+from __future__ import annotations
+from typing  import *
+
 import numpy as np
 import copy
-from resurse.GUI_const import *
-
+from res.gui_const import *
 
 np.random.seed(0)
 
