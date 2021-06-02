@@ -6,12 +6,7 @@ from Algoritmi.SpatialHash import *
 
 
 class Movement(pg.sprite.Sprite):
-    # default image is a li'l white triangle
-    image = pg.Surface((10, 10), pg.SRCALPHA)
-    pg.draw.polygon(image, pg.Color('white'),
-                    [(15, 5), (0, 2), (0, 8)])
-
-    can_wrap = True
+    can_wrap = False
     debug = False
     max_x = 0
     max_y = 0
@@ -22,6 +17,8 @@ class Movement(pg.sprite.Sprite):
     max_turn = 30
     perception = MAX_PERCEPTION
     crowding = 15
+
+    field_of_view = 120
 
     edge_distance_pct = 5
     edges = [0, 0, 0, 0]
@@ -74,6 +71,7 @@ class Movement(pg.sprite.Sprite):
         speed, new_heading = new_velocity.as_polar()
 
         heading_diff = 180 - (180 - new_heading + old_heading) % 360
+
         if abs(heading_diff) > self.max_turn:
             if heading_diff > self.max_turn:
                 new_heading = old_heading + self.max_turn
@@ -99,6 +97,7 @@ class Movement(pg.sprite.Sprite):
         else:
             self.contain()
 
+        # update grid
         if Movement.hashmap.key(self) != old_grid_key:
             Movement.hashmap.remove(self, old_grid_key)
             Movement.hashmap.insert(self)
@@ -194,34 +193,56 @@ class Movement(pg.sprite.Sprite):
 
         return steering
 
+    def go_to(self, creatures: 'Creature') -> pg.Vector2:
+        steering = pg.Vector2()
+
+        for creature in creatures:
+            if creature.type != CARNIVORE:
+                movement_info: Movement = creature.movement
+
+                steering += movement_info.position - self.position
+
+        steering = self.clamp_force(steering)
+
+        return steering
+
     def get_neighbors(self) -> List['Creature']:
 
-        neighbors = []
+        my_key = Movement.hashmap.key(self)
+
+        neighbors = [ Movement.hashmap.query_by_key(my_key)]
         for i in range(-1, 2):
             for j in range(-1, 2):
-
-                res = Movement.hashmap.query_by_key(
-                    Movement.hashmap.key_from_coord(self.position - (self.perception * i, self.perception * j))
-                )
-
-                neighbors.append(res)
+                n_key = Movement.hashmap.key_from_coord(self.position - (self.perception * i, self.perception * j))
+                if my_key != n_key:
+                    res = Movement.hashmap.query_by_key(n_key)
+                    neighbors.append(res)
 
         # neighbors = Movement.hashmap.query(self)
         # creatures = [ x.parent for x in neighbors]
         creatures = []
         for s in neighbors:
-           l =  [x.parent for x in s]
-           creatures.extend(l)
+            l = [x.parent for x in s]
+            creatures.extend(l)
 
         neighbors = []
 
         for creature in creatures:
             if creature != self:
+
                 dist = self.position.distance_to(creature.movement.position)
-                if dist < self.perception:
-                    neighbors.append(creature)
+
+                angle = self.position.angle_to(creature.movement.position)
+
+                _, curent_angle = self.velocity.as_polar()
+
+                if abs(angle) < abs(curent_angle) + Movement.field_of_view:
+
+                    if dist < self.perception and abs(angle) <= self.field_of_view:
+                        neighbors.append(creature)
 
         return neighbors
 
 
+Movement.set_boundary(Movement.edge_distance_pct)
 Movement.hashmap = hashmap = SpatialHash(MAX_PERCEPTION * 2)

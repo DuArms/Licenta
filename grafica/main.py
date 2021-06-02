@@ -6,6 +6,8 @@ from creature.creature import Creature
 
 pg = pygame
 
+fps = 60.0
+
 
 # Set up the drawing window
 class GUI:
@@ -21,9 +23,9 @@ class GUI:
         self.world_coord = (self.map_x, self.map_y)
         self.world = pygame.Surface((MAP_WIDTH, MAP_HIGHT))
 
-        self.dt = 1
+        self.dt = 3
 
-        self.grid = pygame.Surface((MAP_WIDTH, MAP_HIGHT),pygame.SRCALPHA)
+        self.grid = pygame.Surface((MAP_WIDTH, MAP_HIGHT), pygame.SRCALPHA)
         for i in range(0, MAP_HIGHT, MAX_PERCEPTION):
             a = (0, i)
             b = (MAP_WIDTH, i)
@@ -42,10 +44,11 @@ class GUI:
 
             game_gui.draw()
 
-            # for pop in popoluation:
-            #     pop.tick()
+            self.clock.tick(fps)
 
-        #  tick()
+
+            self.tick()
+
 
     def draw(self):
 
@@ -60,10 +63,9 @@ class GUI:
         self.screen.blit(self.world, self.world_coord)
         pygame.display.flip()
 
-        self. tick()
-        from time import sleep
-        #  print(Movement.hashmap)
-        # sleep(10)
+        # from time import sleep
+        # #  print(Movement.hashmap)
+        # # sleep(10)
 
     def tick(self):
         for creature in pop:
@@ -75,10 +77,8 @@ class GUI:
 
             self.world.blit(img.image, img.rect)
 
-
-
     def debugf(self):
-        self.world.blit( self.grid , self.grid.get_rect())
+        self.world.blit(self.grid, self.grid.get_rect())
 
 
 game_gui = GUI()

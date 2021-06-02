@@ -3,14 +3,10 @@ from random import uniform
 from creature.features.movement import Movement
 from res.const import *
 
-Movement.set_boundary(Movement.edge_distance_pct)
 
 
 class Creature:
-    # CONFIG
     debug = False
-
-    ###############
 
     def __init__(self):
         self.to_draw = None
@@ -43,20 +39,14 @@ class Creature:
         neighbors = self.movement.get_neighbors()
 
         if neighbors:
-
             separation = self.movement.separation(neighbors)
             alignment = self.movement.alignment(neighbors)
             cohesion = self.movement.cohesion(neighbors)
             avoid = 1.2 * self.movement.avoid(neighbors)
-            # DEBUG
-            # separation *= 0
-            # alignment *= 0
-            # cohesion *= 0
 
             steering += separation + alignment + cohesion + avoid
 
-        # steering = self.clamp_force(steering)
         self.movement.update(dt, steering)
 
-        if (self.to_draw != None):
+        if self.to_draw is not None:
             self.to_draw.update()
