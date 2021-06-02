@@ -1,6 +1,8 @@
 from creature.features.movement import Movement
-from creature.creature import Creature
+from creature.entity import Entity
 from creature.carnivore import Carnivore
+from creature.plants import Plant
+from creature.herbivore import Herbivore
 from res.const import *
 from time import sleep
 
@@ -15,6 +17,14 @@ pg.draw.polygon(neutral_creature, pg.Color('blue'),
 hostile_creature = pg.Surface((size, size), pg.SRCALPHA)
 pg.draw.polygon(hostile_creature, pg.Color('red'),
                 [(0, size * 0.25), (0, size * 0.75), (size, size / 2)])
+
+plant_img = pg.Surface((size, size), pg.SRCALPHA)
+pg.draw.circle(plant_img, pg.Color('green'),
+               (size / 2, size / 2), size / 3)
+
+pop = []
+
+plants = []
 
 
 class ScreenObject(pg.sprite.Sprite):
@@ -66,20 +76,18 @@ class ScreenObject(pg.sprite.Sprite):
 
             # draw field of view lines
 
-            def f(sign):
+            def field_of_view_line(sign):
                 sight = copy.deepcopy(self.pointer_object.velocity)
                 _, angle = sight.as_polar()
-
 
                 sight.from_polar((self.pointer_object.perception, angle + sign * self.pointer_object.field_of_view))
                 sight += center
 
-
                 pg.draw.line(overlay, pg.Color('pink'), center,
                              sight, 1)
 
-            f(1)
-            f(-1)
+            field_of_view_line(1)
+            field_of_view_line(-1)
 
             self.image = overlay
             self.rect = overlay.get_rect(center=self.pointer_object.position)
@@ -87,13 +95,20 @@ class ScreenObject(pg.sprite.Sprite):
             self.rect = self.image.get_rect(center=self.pointer_object.position)
 
 
-pop = []
+
+
 for _ in range(200):
-    boid = Creature()
-    boid.to_draw = ScreenObject(boid.movement, neutral_creature)
-    pop.append(boid)
+    entity = Herbivore()
+    entity.to_draw = ScreenObject(entity.movement, neutral_creature)
+    pop.append(entity)
 
 for _ in range(10):
-    boid = Carnivore()
-    boid.to_draw = ScreenObject(boid.movement, hostile_creature)
-    pop.append(boid)
+    entity = Carnivore()
+    entity.to_draw = ScreenObject(entity.movement, hostile_creature)
+    pop.append(entity)
+
+for _ in range(1000):
+    entity = Plant()
+    entity.to_draw = ScreenObject(entity.movement, plant_img)
+    plants.append(entity)
+

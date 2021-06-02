@@ -2,7 +2,7 @@ import pygame
 
 from res.const import *
 from grafica.transform import *
-from creature.creature import Creature
+from creature.entity import Entity
 
 pg = pygame
 
@@ -46,9 +46,7 @@ class GUI:
 
             self.clock.tick(fps)
 
-
             self.tick()
-
 
     def draw(self):
 
@@ -68,10 +66,26 @@ class GUI:
         # # sleep(10)
 
     def tick(self):
+        global pop, plants
+
+        new_pop = [x for x in pop if not x.is_ded]
+        new_plants = [x for x in plants if not x.is_ded]
+
+        pop = new_pop
+        plants = new_plants
+
+        #print(len(pop))
+
         for creature in pop:
             creature.update(self.dt, pop)
 
+
+
     def draw_frame(self):
+        for plant in plants:
+            img: ScreenObject = plant.to_draw
+            self.world.blit(img.image, img.rect)
+
         for creature in pop:
             img: ScreenObject = creature.to_draw
 

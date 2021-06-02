@@ -6,7 +6,7 @@ from Algoritmi.SpatialHash import *
 
 
 class Movement(pg.sprite.Sprite):
-    can_wrap = False
+    can_wrap = True
     debug = False
     max_x = 0
     max_y = 0
@@ -39,7 +39,7 @@ class Movement(pg.sprite.Sprite):
                           Movement.max_y - margin_h]
 
     def __init__(self, position, velocity, min_speed, max_speed,
-                 max_force, can_wrap, parent):
+                 max_force, parent, add_to_grid=True):
 
         super().__init__()
 
@@ -49,17 +49,23 @@ class Movement(pg.sprite.Sprite):
         self.max_speed = max_speed
         self.max_force = max_force
 
-        self.position = pg.Vector2(position)
-        self.acceleration = pg.Vector2(0, 0)
-        self.velocity = pg.Vector2(velocity)
+        self.field_of_view = Movement.field_of_view
 
-        Movement.hashmap.insert(self)
-        self.steering = pg.Vector2([0, 0])
+        self.position: Vector2 = Vector2(position)
+        self.acceleration: Vector2 = Vector2(0, 0)
+        self.velocity: Vector2 = Vector2(velocity)
 
+        if add_to_grid:
+            Movement.hashmap.insert(self)
+
+        self.steering: Vector2 = Vector2([0, 0])
         self.heading = 0.0
 
     def update(self, dt, steering):
         old_grid_key = self.hashmap.key(self)
+
+        if not Movement.can_wrap:
+            steering += self.avoid_edge()
 
         self.steering = steering
 
@@ -147,10 +153,10 @@ class Movement(pg.sprite.Sprite):
 
         return force
 
-    def separation(self, creatures: 'Creature') -> pg.Vector2:
+    def separation(self, entities: 'Entity') -> pg.Vector2:
         steering = pg.Vector2()
-        for creature in creatures:
-            movement_info: Movement = creature.movement
+        for entity in entities:
+            movement_info: Movement = entity.movement
             dist = self.position.distance_to(movement_info.position)
 
             if dist < self.crowding:
@@ -158,59 +164,58 @@ class Movement(pg.sprite.Sprite):
         steering = self.clamp_force(steering)
         return steering
 
-    def alignment(self, creatures: 'Creature') -> pg.Vector2:
+    def alignment(self, entities: 'Entity') -> pg.Vector2:
         steering = pg.Vector2()
-        for creature in creatures:
-            movement_info: Movement = creature.movement
+        for entity in entities:
+            movement_info: Movement = entity.movement
             steering += movement_info.velocity
 
-        steering /= len(creatures)
+        steering /= len(entities)
         steering -= self.velocity
         steering = self.clamp_force(steering)
         return steering / 8
 
-    def cohesion(self, creatures: 'Creature') -> pg.Vector2:
+    def cohesion(self, entities: 'Entity') -> pg.Vector2:
         steering = pg.Vector2()
-        for creature in creatures:
-            movement_info: Movement = creature.movement
+        for entity in entities:
+            movement_info: Movement = entity.movement
 
             steering += movement_info.position
-        steering /= len(creatures)
+        steering /= len(entities)
         steering -= self.position
         steering = self.clamp_force(steering)
         return steering / 100
 
-    def avoid(self, creatures: 'Creature') -> pg.Vector2:
+    def avoid(self, entities: 'Entity') -> pg.Vector2:
         steering = pg.Vector2()
 
-        for creature in creatures:
-            if creature.type == CARNIVORE:
-                movement_info: Movement = creature.movement
-
-                steering -= movement_info.position - self.position
+        for entity in entities:
+            if entity.type == EntityTypes.CARNIVORE:
+                movement_info: Movement = entity.movement
+                dist = movement_info.position.distance_to(self.position)
+                steering -= (self.perception * 1.1 - dist) * (movement_info.position - self.position)
 
         steering = self.clamp_force(steering)
 
         return steering
 
-    def go_to(self, creatures: 'Creature') -> pg.Vector2:
+    def go_to(self, entities: 'Entity') -> pg.Vector2:
         steering = pg.Vector2()
 
-        for creature in creatures:
-            if creature.type != CARNIVORE:
-                movement_info: Movement = creature.movement
-
-                steering += movement_info.position - self.position
+        for entity in entities:
+            movement_info: Movement = entity.movement
+            dist = movement_info.position.distance_to(self.position)
+            steering += (self.perception * 1.1 - dist) * (movement_info.position - self.position)
 
         steering = self.clamp_force(steering)
 
         return steering
 
-    def get_neighbors(self) -> List['Creature']:
+    def get_neighbors(self) -> List['Entity']:
 
         my_key = Movement.hashmap.key(self)
 
-        neighbors = [ Movement.hashmap.query_by_key(my_key)]
+        neighbors = [Movement.hashmap.query_by_key(my_key)]
         for i in range(-1, 2):
             for j in range(-1, 2):
                 n_key = Movement.hashmap.key_from_coord(self.position - (self.perception * i, self.perception * j))
@@ -219,27 +224,26 @@ class Movement(pg.sprite.Sprite):
                     neighbors.append(res)
 
         # neighbors = Movement.hashmap.query(self)
-        # creatures = [ x.parent for x in neighbors]
-        creatures = []
+        # entities = [ x.parent for x in neighbors]
+        entities = []
         for s in neighbors:
             l = [x.parent for x in s]
-            creatures.extend(l)
+            entities.extend(l)
 
         neighbors = []
 
-        for creature in creatures:
-            if creature != self:
+        for entity in entities:
+            if entity != self:
 
-                dist = self.position.distance_to(creature.movement.position)
-
-                angle = self.position.angle_to(creature.movement.position)
+                dist = self.position.distance_to(entity.movement.position)
+                angle = self.position.angle_to(entity.movement.position)
 
                 _, curent_angle = self.velocity.as_polar()
 
                 if abs(angle) < abs(curent_angle) + Movement.field_of_view:
 
-                    if dist < self.perception and abs(angle) <= self.field_of_view:
-                        neighbors.append(creature)
+                    if dist < self.perception:
+                        neighbors.append(entity)
 
         return neighbors
 

@@ -36,14 +36,13 @@ class SpatialHash(object):
         self.dict_setdefault(self.key(obj)).add(obj)
 
     def remove(self, obj, key):
+        d = self.dict_setdefault(key)
+        if obj in d:
+            d.remove(obj)
 
-        self.dict_setdefault(key).remove(obj)
-
-    @cache
     def query(self, obj):
         return self.dict_setdefault(self.key(obj))
 
-    @cache
     def query_by_key(self, key):
         return self.dict_setdefault(key)
 
