@@ -1,9 +1,5 @@
-import pygame
-
 from creature.entity import Entity
-
-from Algoritmi.SpatialHash import SpatialHash
-from random import uniform
+from algoritmi.SpatialHash import SpatialHash
 from res.const import *
 
 
@@ -11,11 +7,14 @@ class Plant(Entity):
     food_position: SpatialHash
 
     def __init__(self):
-        super(Plant, self).__init__(False)
+        super(Plant, self).__init__(False,False)
 
         self.movement.velocity = Vector2((0, 0))
         self.movement.max_speed = 0
         self.movement.perception = 0
+
+        self.size = 0
+
         self.type = EntityTypes.PLANT
 
         self.food_position.insert(self.movement)
@@ -25,4 +24,4 @@ class Plant(Entity):
             self.to_draw.update()
 
 
-Plant.food_position = SpatialHash(MAX_PERCEPTION * 2)
+Plant.food_position = SpatialHash(Values.PERCEPTION.high * 2)

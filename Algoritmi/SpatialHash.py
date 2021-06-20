@@ -1,25 +1,14 @@
-import random
-import time
 import math
-from functools import cache
-from typing import List
+from collections import defaultdict
 
 from res.const import *
 
 
 class SpatialHash(object):
-    def dict_setdefault(self, k, d=None) -> set:
-        if d is None:
-            d = set()
 
-        r = self.grid.get(k, d)
-        if k not in self.grid:
-            self.grid[k] = d
-        return r
-
-    def __init__(self, cell_size):
+    def __init__(self, cell_size=Values.PERCEPTION.high * 2):
         self.cell_size = cell_size
-        self.grid = {}
+        self.grid = defaultdict(set)
 
     def key(self, obj):
         point = obj.position
@@ -33,23 +22,27 @@ class SpatialHash(object):
         )
 
     def insert(self, obj):
-        self.dict_setdefault(self.key(obj)).add(obj)
+        self.grid[self.key(obj)] |= {obj}
 
     def remove(self, obj, key):
-        d = self.dict_setdefault(key)
+        d = self.grid[key]
         if obj in d:
             d.remove(obj)
 
     def query(self, obj):
-        return self.dict_setdefault(self.key(obj))
+        return self.grid[self.key(obj)]
 
     def query_by_key(self, key):
-        return self.dict_setdefault(key)
+        if key in self.grid:
+            return self.grid[key]
+        else:
+            return set()
 
     def __repr__(self):
         s = ""
-
+        a = 0
         for k, el in self.grid.items():
-            s += str(k) + "->" + str(el) + '\n'
+            a += len(el)
+        # s += str(k) + "->" + str(el) + '\n'
 
-        return s
+        return s + str(a)

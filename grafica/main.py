@@ -1,17 +1,16 @@
 import pygame
 
 from res.const import *
-from grafica.transform import *
+from grafica.screen_object import *
 from creature.entity import Entity
 
 pg = pygame
-
 fps = 60.0
-
+plants_count = 50
 
 # Set up the drawing window
 class GUI:
-    debug = True
+    debug = False
 
     def __init__(self):
         self.clock = pygame.time.Clock()
@@ -23,15 +22,15 @@ class GUI:
         self.world_coord = (self.map_x, self.map_y)
         self.world = pygame.Surface((MAP_WIDTH, MAP_HIGHT))
 
-        self.dt = 3
+        self.dt = 0.5
 
         self.grid = pygame.Surface((MAP_WIDTH, MAP_HIGHT), pygame.SRCALPHA)
-        for i in range(0, MAP_HIGHT, MAX_PERCEPTION):
+        for i in range(0, MAP_HIGHT, Values.PERCEPTION.high):
             a = (0, i)
             b = (MAP_WIDTH, i)
             pg.draw.line(self.grid, pg.Color('green'), a, b, 1)
 
-        for j in range(0, MAP_WIDTH, MAX_PERCEPTION):
+        for j in range(0, MAP_WIDTH, Values.PERCEPTION.high):
             a = (j, 0)
             b = (j, MAP_HIGHT)
             pg.draw.line(self.grid, pg.Color('green'), a, b, 1)
@@ -43,9 +42,8 @@ class GUI:
                     return
 
             game_gui.draw()
-
+            #print(self.clock.tick(fps))
             self.clock.tick(fps)
-
             self.tick()
 
     def draw(self):
@@ -61,38 +59,40 @@ class GUI:
         self.screen.blit(self.world, self.world_coord)
         pygame.display.flip()
 
-        # from time import sleep
-        # #  print(Movement.hashmap)
-        # # sleep(10)
-
     def tick(self):
-        global pop, plants
+        global population, plants
 
-        new_pop = [x for x in pop if not x.is_ded]
+        new_population = [x for x in population if not x.is_ded]
         new_plants = [x for x in plants if not x.is_ded]
 
-        pop = new_pop
+        population = new_population
         plants = new_plants
 
-        #print(len(pop))
+        # print(len(population))
 
-        for creature in pop:
-            creature.update(self.dt, pop)
+        for creature in population:
+            creature.update(self.dt, population)
 
-
+        if len(plants) < plants_count:
+            for x in range(plants_count - len(plants)):
+                entity = Plant()
+                entity.to_draw = ScreenObject(entity.movement, plant_img)
+                plants.append(entity)
 
     def draw_frame(self):
         for plant in plants:
             img: ScreenObject = plant.to_draw
             self.world.blit(img.image, img.rect)
 
-        for creature in pop:
+        for creature in population:
             img: ScreenObject = creature.to_draw
 
             self.world.blit(img.image, img.rect)
 
     def debugf(self):
         self.world.blit(self.grid, self.grid.get_rect())
+
+        pass
 
 
 game_gui = GUI()

@@ -1,8 +1,10 @@
 import pygame as pg
+from pygame.math import Vector2
 
-from res.const import *
-
-from Algoritmi.SpatialHash import *
+from algoritmi.SpatialHash import *
+from res.gui_const import *
+from random import uniform
+import numpy as np
 
 
 class Movement(pg.sprite.Sprite):
@@ -11,14 +13,10 @@ class Movement(pg.sprite.Sprite):
     max_x = 0
     max_y = 0
 
-    min_speed = 0
-    max_speed = 2
-    max_force = 3
-    max_turn = 30
-    perception = MAX_PERCEPTION
-    crowding = 15
+    max_turn = Values.TURN.high
+    crowding = Values.CROWDING.avg
 
-    field_of_view = 120
+    field_of_view = Values.FIELD_OF_VIEW.high
 
     edge_distance_pct = 5
     edges = [0, 0, 0, 0]
@@ -26,9 +24,9 @@ class Movement(pg.sprite.Sprite):
     hashmap: SpatialHash = None
 
     @staticmethod
-    def set_boundary(edge_distance_pct):
-        Movement.max_x = MAP_WIDTH
-        Movement.max_y = MAP_HIGHT
+    def set_boundary(edge_distance_pct, x, y):
+        Movement.max_x = x
+        Movement.max_y = y
 
         margin_w = Movement.max_x * edge_distance_pct / 100
         margin_h = Movement.max_y * edge_distance_pct / 100
@@ -38,28 +36,63 @@ class Movement(pg.sprite.Sprite):
                           Movement.max_x - margin_w,
                           Movement.max_y - margin_h]
 
-    def __init__(self, position, velocity, min_speed, max_speed,
-                 max_force, parent, add_to_grid=True):
+    def __init__(self,
+                 position,
+                 velocity,
+                 parent=None,
+                 add_to_grid=True,
+
+                 max_speed=Values.SPEED.high,
+                 max_force=Values.FORCE.high,
+                 perception=Values.PERCEPTION.high,
+                 field_of_view=Values.FIELD_OF_VIEW.high,
+                 crowding=Values.CROWDING.high,
+
+                 ):
 
         super().__init__()
 
         # set limits
+
         self.parent = parent
-        self.min_speed = min_speed
-        self.max_speed = max_speed
-        self.max_force = max_force
-
-        self.field_of_view = Movement.field_of_view
-
         self.position: Vector2 = Vector2(position)
         self.acceleration: Vector2 = Vector2(0, 0)
         self.velocity: Vector2 = Vector2(velocity)
+
+        self.coord = np.asarray((self.position[0], self.position[1]))
+
+        self.min_speed = Values.SPEED.low
+
+        self.max_speed = max_speed
+        self.max_force = max_force
+
+        self.perception = perception
+        self.field_of_view = field_of_view
+
+        self.crowding = crowding
 
         if add_to_grid:
             Movement.hashmap.insert(self)
 
         self.steering: Vector2 = Vector2([0, 0])
         self.heading = 0.0
+
+    def set_gene_values(self, max_speed=Values.SPEED.high,
+                        max_force=Values.FORCE.high,
+                        perception=Values.PERCEPTION.high,
+                        field_of_view=Values.FIELD_OF_VIEW.high, ):
+
+        self.max_speed = max_speed
+        self.max_force = max_force
+
+        self.perception = perception
+        self.field_of_view = field_of_view
+
+    def random_pos(self):
+        self.position = pg.math.Vector2(
+            uniform(0.1 * Movement.max_x, 0.9 * Movement.max_x),
+            uniform(0.1 * Movement.max_y, 0.9 * Movement.max_y))
+
 
     def update(self, dt, steering):
         old_grid_key = self.hashmap.key(self)
@@ -108,6 +141,8 @@ class Movement(pg.sprite.Sprite):
             Movement.hashmap.remove(self, old_grid_key)
             Movement.hashmap.insert(self)
 
+        self.coord = np.asarray((self.position[0], self.position[1]))
+
     def avoid_edge(self):
         left = self.edges[0] - self.position.x
         up = self.edges[1] - self.position.y
@@ -155,6 +190,7 @@ class Movement(pg.sprite.Sprite):
 
     def separation(self, entities: 'Entity') -> pg.Vector2:
         steering = pg.Vector2()
+
         for entity in entities:
             movement_info: Movement = entity.movement
             dist = self.position.distance_to(movement_info.position)
@@ -165,6 +201,9 @@ class Movement(pg.sprite.Sprite):
         return steering
 
     def alignment(self, entities: 'Entity') -> pg.Vector2:
+        if not entities:
+            return Vector2()
+
         steering = pg.Vector2()
         for entity in entities:
             movement_info: Movement = entity.movement
@@ -173,9 +212,12 @@ class Movement(pg.sprite.Sprite):
         steering /= len(entities)
         steering -= self.velocity
         steering = self.clamp_force(steering)
-        return steering / 8
+        return steering / 4
 
     def cohesion(self, entities: 'Entity') -> pg.Vector2:
+        if not entities:
+            return Vector2()
+
         steering = pg.Vector2()
         for entity in entities:
             movement_info: Movement = entity.movement
@@ -212,7 +254,6 @@ class Movement(pg.sprite.Sprite):
         return steering
 
     def get_neighbors(self) -> List['Entity']:
-
         my_key = Movement.hashmap.key(self)
 
         neighbors = [Movement.hashmap.query_by_key(my_key)]
@@ -234,19 +275,22 @@ class Movement(pg.sprite.Sprite):
 
         for entity in entities:
             if entity != self:
-
                 dist = self.position.distance_to(entity.movement.position)
-                angle = self.position.angle_to(entity.movement.position)
+                if dist < self.perception:
+                    angle = self.velocity.angle_to(entity.movement.position - self.position)
+                    angle = angle % 180
 
-                _, curent_angle = self.velocity.as_polar()
+                    if angle < Movement.field_of_view:
+                        sc = 0.2
+                        if angle < 0.30 * self.field_of_view:
+                            sc += 0.5
+                        sc += entity.chance_to_be_seen + self.parent.focus
 
-                if abs(angle) < abs(curent_angle) + Movement.field_of_view:
-
-                    if dist < self.perception:
-                        neighbors.append(entity)
+                        if np.random.rand() < sc:
+                            neighbors.append(entity)
 
         return neighbors
 
 
-Movement.set_boundary(Movement.edge_distance_pct)
-Movement.hashmap = hashmap = SpatialHash(MAX_PERCEPTION * 2)
+Movement.set_boundary(Movement.edge_distance_pct, MAP_WIDTH, MAP_HIGHT)
+Movement.hashmap = hashmap = SpatialHash(Values.PERCEPTION.high * 2)
